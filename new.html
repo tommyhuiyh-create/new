@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gemini 儲蓄實驗室 (Pro)</title>
+    <style>
+        /* --- 核心變數 (北歐風格) --- */
+        :root {
+            --bg-color: #F8F9FB;
+            --card-bg: #FFFFFF;
+            --primary-black: #1A1A1A;
+            --accent-yellow: #F4D35E;
+            --accent-yellow-light: #FFF9E6;
+            --text-main: #2D3436;
+            --text-sub: #AAB0B6;
+            --shadow-soft: 0 10px 30px rgba(0,0,0,0.03);
+            --radius-box: 24px;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            padding-bottom: 100px;
+            overflow-x: hidden;
+        }
+
+        /* --- Header --- */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+        }
+        .brand { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+        .avatar-snowman {
+            font-size: 1.8rem; background: white; width: 45px; height: 45px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .container { padding: 0 20px; }
+        .view-section { display: none; opacity: 0; transition: opacity 0.3s ease; }
+        .view-section.active { display: block; opacity: 1; }
+
+        /* --- 卡片樣式 --- */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius-box);
+            padding: 24px;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* --- 虛線加碼區 (新功能) --- */
+        .extra-section {
+            border: 2px dashed #E0E0E0; /* 虛線邊框 */
+            background: rgba(255,255,255,0.8);
+        }
+        .extra-header {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 15px;
+            font-weight: 700; color: var(--text-main); font-size: 0.95rem;
+        }
+        .extra-input-group { display: flex; gap: 10px; }
+        .extra-input {
+            flex: 1; padding: 12px; background: #F2F4F6; border: none;
+            border-radius: 12px; text-align: center; font-size: 1rem; outline: none;
+        }
+        .extra-btn {
+            background: var(--primary-black); color: white; border: none;
+            padding: 0 20px; border-radius: 12px; font-weight: 600; cursor: pointer;
+        }
+        .extra-btn:active { transform: scale(0.95); }
+
+        /* --- Dashboard 元素 --- */
+        .dash-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .dash-title h2 { margin: 0; font-size: 1.2rem; }
+        .dash-title span { font-size: 0.7rem; color: var(--text-sub); display: block; margin-top: 4px; letter-spacing: 1px; }
+        
+        .hero-amount { text-align: center; padding: 10px 0 30px 0; }
+        .hero-amount .label { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 10px; }
+        .hero-amount .currency { font-size: 3rem; font-weight: 800; letter-spacing: -1px; }
+        .hero-amount .total-goal { color: var(--text-sub); font-size: 1rem; font-weight: 400; margin-left: 5px;}
+
+        /* AI Tip */
+        .ai-tip-card { background: linear-gradient(135deg, #FFF9E6 0%, #FFF0C2 100%); border: 1px solid rgba(244, 211, 94, 0.2); }
+        .tip-content { font-size: 0.95rem; line-height: 1.5; color: #5A4A12; font-weight: 500; margin-top: 10px;}
+        .tip-tag { font-size: 0.7rem; font-weight: bold; color: #D4A017; background: white; padding: 4px 10px; border-radius: 20px; display: inline-block;}
+
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .stat-box { background: white; padding: 16px; border-radius: 18px; box-shadow: var(--shadow-soft); }
+        .stat-box .label { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 4px; }
+        .stat-box .value { font-size: 1.1rem; font-weight: 700; color: var(--primary-black); }
+        .stat-box .icon { font-size: 1.2rem; margin-bottom: 8px; display: block; }
+
+        /* --- 格子區域 (倒序) --- */
+        .grid-header { padding: 10px 24px; }
+        .grid-container {
+            display: grid; grid-template-columns: repeat(4, 1fr); /* 改成一排4個適合大數字 */
+            gap: 12px; padding: 0 20px;
+        }
+        .grid-item {
+            aspect-ratio: 1; background: white; border-radius: 14px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03); cursor: pointer;
+            transition: all 0.2s; position: relative;
+        }
+        .grid-item .day-num { font-size: 0.65rem; color: #CCC; margin-bottom: 2px; }
+        .grid-item .money { font-size: 1rem; font-weight: 700; color: var(--text-main); }
+
+        /* Saved State */
+        .grid-item.saved { background: var(--accent-yellow); box-shadow: 0 4px 12px rgba(244, 211, 94, 0.4); transform: translateY(-2px); }
+        .grid-item.saved .money { color: #5A4A12; }
+        .grid-item.saved .day-num { color: rgba(90, 74, 18, 0.5); }
+
+        /* --- 底部導航 --- */
+        .bottom-nav-container {
+            position: fixed; bottom: 30px; left: 0; width: 100%;
+            display: flex; justify-content: center; z-index: 100; pointer-events: none;
+        }
+        .nav-pill {
+            background: var(--primary-black); padding: 6px; border-radius: 100px;
+            display: flex; gap: 5px; pointer-events: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .nav-item {
+            padding: 10px 24px; border-radius: 100px; color: #777; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.3s;
+        }
+        .nav-item.active { background: #333; color: white; }
+        .nav-item svg { width: 16px; height: 16px; fill: currentColor; }
+
+        /* --- Modal --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4); z-index: 200; display: none; backdrop-filter: blur(4px);
+            align-items: flex-end;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-card {
+            background: var(--card-bg); width: 100%; border-radius: 30px 30px 0 0;
+            padding: 30px 24px 50px 24px; text-align: center;
+            animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .confirm-amount { font-size: 2.2rem; font-weight: 800; margin: 20px 0; color: var(--primary-black); }
+        .confirm-detail { color: var(--text-sub); font-size: 0.9rem; margin-bottom: 25px; }
+        .action-btn {
+            background: var(--primary-black); color: white; width: 100%; padding: 18px;
+            border: none; border-radius: 20px; font-size: 1rem; font-weight: 600; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="brand">Gemini Pro</div>
+        <div class="avatar-snowman">☃️</div>
+    </div>
+
+    <div class="container">
+        <div id="view-dashboard" class="view-section active">
+            
+            <div class="card">
+                <div class="dash-header">
+                    <div class="dash-title">
+                        <h2>儲蓄實驗室 x2</h2>
+                        <span>Total Goal: $133,590</span>
+                    </div>
+                    <div class="mini-stat">
+                        <div class="label">完成率</div>
+                        <div class="val"><span id="headerPercent">0.0</span>%</div>
+                    </div>
+                </div>
+                
+                <div class="hero-amount">
+                    <div class="label">◎ 當前金庫總額 (含加碼)</div>
+                    <span class="currency">$<span id="headerTotal">0</span></span>
+                    <span class="total-goal">/ 133,590</span>
+                </div>
+            </div>
+
+            <div class="card extra-section">
+                <div class="extra-header">
+                    <span>🦴 額外加碼小金庫</span>
+                </div>
+                <div class="extra-input-group">
+                    <input type="number" id="extraInput" class="extra-input" placeholder="輸入獎金/額外金額">
+                    <button class="extra-btn" onclick="addExtraMoney()">存入</button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span class="icon">📅</span>
+                    <div class="label">已存天數</div>
+                    <div class="value"><span id="daysCount">0</span> Days</div>
+                </div>
+                <div class="stat-box">
+                    <span class="icon">💰</span>
+                    <div class="label">額外加碼</div>
+                    <div class="value">$<span id="extraTotalDisplay">0</span></div>
+                </div>
+                <div class="stat-box">
+                    <span class="icon">🏆</span>
+                    <div class="label">目標缺口</div>
+                    <div class="value" style="color:#e17055;">$<span id="targetGap">133,590</span></div>
+                </div>
+                <div class="stat-box">
+                    <span class="icon">🏁</span>
+                    <div class="label">剩餘挑戰</div>
+                    <div class="value"><span id="daysLeft">365</span> Days</div>
+                </div>
+            </div>
+
+            <div class="card ai-tip-card">
+                <div class="tip-tag">✨ 存錢心法</div>
+                <div class="tip-content">
+                    先苦後甜是這個計畫的核心。今天存下最難的一筆，明天的你會感謝現在的堅持。
+                </div>
+            </div>
+            
+            <div style="height: 20px;"></div>
+        </div>
+
+        <div id="view-grid" class="view-section">
+            <div class="grid-header">
+                <h3>倒序挑戰 <span style="font-size:0.8rem; color:#aaa; font-weight:400; margin-left:auto">從 $730 開始</span></h3>
+            </div>
+            <div class="grid-container" id="gridContainer">
+                </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav-container">
+        <div class="nav-pill">
+            <div class="nav-item" id="nav-grid" onclick="switchView('grid')">
+                <svg viewBox="0 0 24 24"><path d="M4 4h4v4H4zm6 0h4v4h-4zm6 0h4v4h-4zM4 10h4v4H4zm6 0h4v4h-4zm6 0h4v4h-4zM4 16h4v4H4zm6 0h4v4h-4zm6 0h4v4h-4z"/></svg>
+                成就格
+            </div>
+            <div class="nav-item active" id="nav-dash" onclick="switchView('dashboard')">
+                <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+                數據趨勢
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmModal" onclick="closeModal()">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div style="text-align:right;"><span onclick="closeModal()" style="font-size:1.5rem;color:#999;cursor:pointer;">×</span></div>
+            <div class="confirm-detail">Day <span id="modalDay"></span> 挑戰</div>
+            <div class="confirm-amount">$<span id="modalAmount">0</span></div>
+            <button class="action-btn" onclick="confirmSave()">
+                ⚡ 確認存入
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 設定與邏輯 ---
+        const TOTAL_DAYS = 365;
+        // 目標 = (1+365)*365/2 * 2 = 133590
+        const TARGET_GOAL = 133590; 
+
+        // 儲存 Keys (使用新名稱避免衝突)
+        const KEY_DAYS = 'nordic_x2_days';
+        const KEY_EXTRA = 'nordic_x2_extra';
+
+        // 狀態
+        let savedSet = new Set(JSON.parse(localStorage.getItem(KEY_DAYS)) || []);
+        let extraMoney = parseInt(localStorage.getItem(KEY_EXTRA)) || 0;
+        let currentDay = null;
+
+        // DOM
+        const els = {
+            grid: document.getElementById('gridContainer'),
+            headerTotal: document.getElementById('headerTotal'),
+            headerPercent: document.getElementById('headerPercent'),
+            daysCount: document.getElementById('daysCount'),
+            daysLeft: document.getElementById('daysLeft'),
+            extraTotalDisplay: document.getElementById('extraTotalDisplay'),
+            targetGap: document.getElementById('targetGap'),
+            extraInput: document.getElementById('extraInput'),
+            modal: document.getElementById('confirmModal'),
+            modalAmount: document.getElementById('modalAmount'),
+            modalDay: document.getElementById('modalDay')
+        };
+
+        function init() {
+            renderGrid();
+            updateDashboard();
+        }
+
+        // 渲染格子 (倒序 365 -> 1)
+        function renderGrid() {
+            els.grid.innerHTML = '';
+            for (let i = TOTAL_DAYS; i >= 1; i--) {
+                const amount = i * 2; // 金額雙倍
+                
+                const item = document.createElement('div');
+                item.className = 'grid-item';
+                if (savedSet.has(i)) item.classList.add('saved');
+
+                item.innerHTML = `
+                    <div class="day-num">Day ${i}</div>
+                    <div class="money">$${amount}</div>
+                `;
+
+                item.onclick = () => handleGridClick(i, amount);
+                els.grid.appendChild(item);
+            }
+        }
+
+        // 點擊格子
+        function handleGridClick(day, amount) {
+            if (savedSet.has(day)) {
+                // 取消存錢
+                if(confirm(`撤銷 Day ${day} 的 $${amount} 紀錄嗎？`)) {
+                    savedSet.delete(day);
+                    saveAndRefresh();
+                }
+            } else {
+                // 開啟 Modal
+                currentDay = day;
+                els.modalDay.textContent = day;
+                els.modalAmount.textContent = amount;
+                els.modal.classList.add('show');
+            }
+        }
+
+        // Modal 確認
+        function confirmSave() {
+            if (currentDay) {
+                savedSet.add(currentDay);
+                saveAndRefresh();
+                closeModal();
+            }
+        }
+
+        function closeModal() {
+            els.modal.classList.remove('show');
+            currentDay = null;
+        }
+
+        // 額外加碼功能
+        function addExtraMoney() {
+            const val = parseInt(els.extraInput.value);
+            if (val && val > 0) {
+                if(confirm(`確認存入額外款項 $${val} 嗎？`)) {
+                    extraMoney += val;
+                    els.extraInput.value = '';
+                    saveAndRefresh();
+                }
+            }
+        }
+
+        // 更新數據
+        function updateDashboard() {
+            const savedArr = Array.from(savedSet);
+            // 算出格子內的總額 (天數 * 2)
+            const gridTotal = savedArr.reduce((acc, day) => acc + (day * 2), 0);
+            const total = gridTotal + extraMoney; // 加上額外金額
+
+            els.headerTotal.textContent = total.toLocaleString();
+            // 百分比分母固定為目標 133590，若加上額外獎金超過 100% 也沒關係
+            els.headerPercent.textContent = (total / TARGET_GOAL * 100).toFixed(1);
+            
+            els.daysCount.textContent = savedSet.size;
+            els.daysLeft.textContent = TOTAL_DAYS - savedSet.size;
+            els.extraTotalDisplay.textContent = extraMoney.toLocaleString();
+            
+            const gap = TARGET_GOAL - total;
+            els.targetGap.textContent = gap > 0 ? gap.toLocaleString() : "0 (已達成!)";
+        }
+
+        function saveAndRefresh() {
+            localStorage.setItem(KEY_DAYS, JSON.stringify(Array.from(savedSet)));
+            localStorage.setItem(KEY_EXTRA, extraMoney.toString());
+            renderGrid();
+            updateDashboard();
+        }
+
+        // 視圖切換
+        function switchView(viewName) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+            document.getElementById('nav-' + viewName).classList.add('active');
+            window.scrollTo(0, 0);
+        }
+        
+        // Expose switchView to global for HTML onclick
+        window.switchView = switchView;
+
+        init();
+    </script>
+</body>
+</html>
